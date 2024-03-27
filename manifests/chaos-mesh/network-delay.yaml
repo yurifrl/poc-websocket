@@ -13,4 +13,4 @@ spec:
       'app': 'poc-websocket' # the label of the pod for chaos injection
   delay:
     latency: '10s'
-  duration: '10s'
+  duration: '10h'

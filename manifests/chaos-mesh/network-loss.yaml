@@ -1,0 +1,21 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: network-loss-schedule
+  namespace: poc-websocket
+spec:
+  schedule: '@every 1s'
+  historyLimit: 10
+  concurrencyPolicy: 'Allow'
+  type: 'NetworkChaos'
+  networkChaos:
+    action: loss
+    mode: all
+    selector:
+      namespaces:
+        - poc-websocket
+      labelSelectors:
+        'app': 'poc-websocket'
+    loss:
+      loss: '100'
+    duration: '10s'

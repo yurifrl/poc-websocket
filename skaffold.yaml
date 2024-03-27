@@ -6,13 +6,13 @@ manifests:
   rawYaml:
     - manifests/deploy.yaml
     - manifests/service.yaml
-build:
-  artifacts:
-  - image: poc-websocket
 deploy:
   docker:
     images: [poc-websocket]
 portForward:
-- resourceType: service
-  resourceName: poc-websocket
-  port: 80
+  - resourceType: service
+    resourceName: poc-websocket
+    port: 80
+build:
+  artifacts:
+    - image: poc-websocket
