@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -55,44 +56,77 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) webSocketHandler(w http.ResponseWriter, r *http.Request) {
-	// Upgrade initial GET request to a websocket
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ws.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Log the new connection
-	log.Info("New WebSocket connection established")
-
-	// Initialize a counter variable
-	counter := 0
-
-	// Start a loop to continuously send messages
-	for {
-		// Increment the counter
-		counter++
-
-		// Create a new message with the iterative number
-		msg := &pb.Message{Content: fmt.Sprintf("Hello from the server! [%d]", counter)}
-
-		// Marshal the message to protobuf
-		data, err := proto.Marshal(msg)
+	// Define the function that will attempt to send messages
+	sendMessages := func() error {
+		// Upgrade initial GET request to a websocket
+		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Println("marshal:", err)
-			break
+			return fmt.Errorf("upgrade failed: %w", err)
 		}
+		defer ws.Close()
 
-		// Send the message
-		if err := ws.WriteMessage(websocket.BinaryMessage, data); err != nil {
-			log.Println("write:", err)
-			break
+		// Log the new connection
+		log.Info("New WebSocket connection established")
+
+		// Initialize a counter variable
+		counter := 0
+
+		// Start a loop to continuously send messages
+		for {
+			// Increment the counter
+			counter++
+
+			// Create a new message with the iterative number
+			msg := &pb.Message{Content: fmt.Sprintf("Hello from the server! [%d]", counter)}
+
+			// Marshal the message to protobuf
+			data, err := proto.Marshal(msg)
+			if err != nil {
+				return fmt.Errorf("marshal failed: %w", err)
+			}
+
+			// Send the message
+			if err := ws.WriteMessage(websocket.BinaryMessage, data); err != nil {
+				return fmt.Errorf("write failed: %w", err)
+			}
+
+			// Log the sent message
+			log.Printf("Sent: %s", msg.GetContent())
+
+			// Wait for a second before sending the next message
+			time.Sleep(1 * time.Second)
 		}
+	}
 
-		// Log the sent message
-		log.Printf("Sent: %s", msg.GetContent())
+	// Call the retry function with the sendMessages function
+	if err := retryOnErr(ctx, time.Millisecond*100, sendMessages); err != nil {
+		log.Errorf("Failed to send messages: %v", err)
+	}
+}
 
-		// Wait for a second before sending the next message
-		time.Sleep(1 * time.Second)
+func retryOnErr(ctx context.Context, backoff time.Duration, fn func() error) error {
+	attempts := 0
+	for {
+		attempts++
+
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		nextDuration := time.Duration(1<<attempts) * backoff
+		log.Infof("Failure, retrying... error: %v, retry_in: %v", err, nextDuration)
+
+		timer := time.NewTimer(nextDuration)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+			timer.Stop()
+			continue
+		}
 	}
 }

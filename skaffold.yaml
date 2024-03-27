@@ -4,8 +4,8 @@ metadata:
   name: poc-websocket
 manifests:
   rawYaml:
-    - deploy/deploy.yaml
-    - deploy/service.yaml
+    - manifests/deploy.yaml
+    - manifests/service.yaml
 build:
   artifacts:
   - image: poc-websocket
