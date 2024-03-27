@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poc-websocket
+  namespace: poc-websocket
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: poc-websocket
+  template:
+    metadata:
+      labels:
+        app: poc-websocket
+    spec:
+      containers:
+        - name: poc-websocket
+          image: poc-websocket
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: "512Mi"
